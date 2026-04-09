@@ -1,0 +1,35 @@
+# Environment secrets
+.env
+
+# Dataset files (too large for Git)
+producer/data/*.csv
+producer/data/*.zip
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Spark
+spark/jars/*.jar
+spark/checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+.claude/
+CLAUDE.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker volumes
+data/
+
+# Logs
+*.log

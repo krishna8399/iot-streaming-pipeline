@@ -1,0 +1,314 @@
+{
+  "__inputs": [],
+  "__requires": [
+    { "type": "grafana", "id": "grafana", "name": "Grafana",    "version": "10.0.0" },
+    { "type": "datasource", "id": "postgres", "name": "PostgreSQL", "version": "1.0.0" },
+    { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" },
+    { "type": "panel", "id": "gauge",      "name": "Gauge",       "version": "" },
+    { "type": "panel", "id": "barchart",   "name": "Bar chart",   "version": "" },
+    { "type": "panel", "id": "table",      "name": "Table",       "version": "" },
+    { "type": "panel", "id": "stat",       "name": "Stat",        "version": "" }
+  ],
+  "annotations": { "list": [] },
+  "description": "Real-time IoT sensor monitoring — temperature, humidity, reading throughput and anomaly detection.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "refresh": "30s",
+  "schemaVersion": 38,
+  "tags": ["iot", "sensors", "timescaledb", "streaming"],
+  "time": { "from": "now-3h", "to": "now" },
+  "timepicker": {
+    "refresh_intervals": ["10s","30s","1m","5m","15m","30m","1h"],
+    "time_options": ["5m","15m","1h","3h","6h","12h","24h","2d","7d"]
+  },
+  "timezone": "utc",
+  "title": "IoT Sensor Pipeline",
+  "uid": "iot-sensor-dashboard",
+  "version": 1,
+
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Temperature — 5-min Avg per Sensor",
+      "description": "Average temperature per sensor from completed 5-minute tumbling windows. Shaded threshold at 60 °C (warning) and 80 °C (critical).",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 9 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  window_start AS \"time\",\n  avg_temp,\n  sensor_id AS metric\nFROM sensor_aggregates\nWHERE $__timeFilter(window_start)\nORDER BY 1",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  window_start AS \"time\",\n  max_temp,\n  sensor_id || '_max' AS metric\nFROM sensor_aggregates\nWHERE $__timeFilter(window_start)\nORDER BY 1",
+          "refId": "B",
+          "hide": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "decimals": 1,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "spanNulls": false,
+            "showPoints": "auto",
+            "pointSize": 4
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 60   },
+              { "color": "red",    "value": 80   }
+            ]
+          },
+          "links": []
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": ".*_max$" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "dash": [6,3], "fill": "dash" } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "custom.fillOpacity", "value": 0 }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": ["lastNotNull","mean","min","max"]
+        }
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "gauge",
+      "title": "Current Humidity — Latest Window",
+      "description": "Average relative humidity from the most recent completed 5-minute window for each sensor.",
+      "gridPos": { "x": 0, "y": 9, "w": 7, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  sensor_id,\n  avg_humidity\nFROM sensor_aggregates sa\nINNER JOIN (\n  SELECT sensor_id, MAX(window_start) AS latest\n  FROM   sensor_aggregates\n  GROUP BY sensor_id\n) last USING (sensor_id)\nWHERE sa.window_start = last.latest\nORDER BY sensor_id",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 20   },
+              { "color": "green",  "value": 40   },
+              { "color": "yellow", "value": 80   },
+              { "color": "red",    "value": 95   }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "avg_humidity" },
+            "properties": [{ "id": "displayName", "value": "Humidity %" }]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "/^avg_humidity$/",
+          "values": true
+        },
+        "orientation": "auto",
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "text": {}
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "Reading Throughput — Messages per 5-min Window",
+      "description": "Number of raw sensor readings ingested per 5-minute window, grouped by sensor. A sudden drop indicates producer or Kafka issues.",
+      "gridPos": { "x": 7, "y": 9, "w": 10, "h": 8 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  window_start AS \"time\",\n  reading_count,\n  sensor_id AS metric\nFROM sensor_aggregates\nWHERE $__timeFilter(window_start)\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "fillOpacity": 80,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "none",
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "xTickLabelRotation": -30,
+        "xTickLabelSpacing": 200
+      },
+      "transformations": []
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Anomaly Count",
+      "description": "Number of raw sensor readings with temperature outside the normal operating range (> 80 °C overheating or < -20 °C cold-fault) in the selected time window.",
+      "gridPos": { "x": 17, "y": 9, "w": 4, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COUNT(*) AS anomaly_count\nFROM sensor_readings\nWHERE (temperature > 80 OR temperature < -20)\n  AND $__timeFilter(timestamp)",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow","value": 1    },
+              { "color": "red",   "value": 10   }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "anomaly_count" },
+            "properties": [{ "id": "displayName", "value": "Anomalies" }]
+          }
+        ]
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": { "titleSize": 14, "valueSize": 36 }
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Recent Anomalies",
+      "description": "Latest sensor readings flagged as anomalies (temperature > 80 °C or < -20 °C). Overheating events are a key predictive-maintenance signal.",
+      "gridPos": { "x": 17, "y": 13, "w": 7, "h": 4 },
+      "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "timescaledb-iot" },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  timestamp AS \"Time\",\n  sensor_id AS \"Sensor\",\n  ROUND(temperature::numeric, 1) AS \"Temp (°C)\",\n  CASE\n    WHEN temperature > 80  THEN 'OVERHEATING'\n    WHEN temperature < -20 THEN 'COLD FAULT'\n    ELSE 'NORMAL'\n  END AS \"Type\"\nFROM sensor_readings\nWHERE (temperature > 80 OR temperature < -20)\n  AND $__timeFilter(timestamp)\nORDER BY timestamp DESC\nLIMIT 25",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "custom": { "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Temp (°C)" },
+            "properties": [
+              { "id": "unit", "value": "celsius" },
+              {
+                "id": "custom.displayMode",
+                "value": "color-background"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "blue",   "value": null },
+                    { "color": "green",  "value": -19  },
+                    { "color": "red",    "value": 80   }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Type" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "OVERHEATING": { "color": "red",    "index": 0 } } },
+                  { "type": "value", "options": { "COLD FAULT":  { "color": "blue",   "index": 1 } } }
+                ]
+              },
+              { "id": "custom.displayMode", "value": "color-text" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "sortBy": [{ "desc": true, "displayName": "Time" }],
+        "footer": { "show": false }
+      },
+      "transformations": []
+    }
+  ]
+}

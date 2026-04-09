@@ -1,0 +1,8 @@
+# Kafka client — pure-Python, no librdkafka dependency
+kafka-python==2.0.2
+
+# CSV parsing and data manipulation
+pandas==2.2.2
+
+# Retry / back-off helper
+tenacity==8.3.0

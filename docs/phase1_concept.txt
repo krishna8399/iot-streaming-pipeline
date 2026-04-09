@@ -1,0 +1,14 @@
+PHASE 1 — UPDATED CONCEPT TEXT (paste into PebblePad text box)
+=============================================================
+
+For this project, I chose Task 2: building a real-time streaming data backend. My use case is IoT sensor monitoring for predictive maintenance, which naturally fits a streaming architecture where sensor readings flow continuously.
+
+Drawing on Kleppmann (2017), I selected Apache Kafka for ingestion due to its high-throughput streaming and built-in fault tolerance. Spark Structured Streaming handles processing, using tumbling 5-minute windows to compute aggregations (avg, min, max, stddev, count) per sensor. I chose TimescaleDB over plain PostgreSQL because its hypertables auto-partition time-series data, which is exactly what IoT sensors produce. A Grafana dashboard connects to TimescaleDB to provide real-time visualization of sensor health.
+
+The real-time aspect is simulated using a Python producer that reads a Kaggle IoT dataset (1M+ timestamped records) and publishes to Kafka with configurable delays and anomaly injection. A dead letter queue topic captures failed messages for debugging.
+
+All components run as isolated Docker containers orchestrated via docker-compose.yml, serving as my Infrastructure as Code. Data security relies on Docker network isolation and .env-based secrets. Data governance is enforced through JSON schema validation at the producer and data quality checks within Spark.
+
+The attached diagram details the full architecture and design decisions.
+
+=============================================================

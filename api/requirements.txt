@@ -1,0 +1,14 @@
+# Web framework
+fastapi==0.111.0
+
+# ASGI server (standard extras include uvloop + httptools for perf)
+uvicorn[standard]==0.29.0
+
+# PostgreSQL / TimescaleDB driver (binary wheel — no local build needed)
+psycopg2-binary==2.9.9
+
+# Connection pooling
+asyncpg==0.29.0
+
+# Pydantic v2 (bundled with FastAPI 0.111, listed for clarity)
+pydantic==2.7.1

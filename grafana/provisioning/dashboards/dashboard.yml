@@ -1,0 +1,20 @@
+# ============================================================
+# Grafana dashboard provider provisioning
+# ============================================================
+# Tells Grafana to scan a directory for dashboard JSON files
+# and load them automatically on startup (and re-scan every
+# 30 seconds for changes).
+# ============================================================
+
+apiVersion: 1
+
+providers:
+  - name: IoT Pipeline Dashboards
+    orgId: 1
+    type: file
+    disableDeletion: true       # prevent deletion via UI; manage via files
+    updateIntervalSeconds: 30   # poll interval for new/changed JSON files
+    allowUiUpdates: false       # changes must come from files, not the UI
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false
